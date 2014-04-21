@@ -1,55 +1,42 @@
 {
   "name": "application",
+  "description" : "my package.json template",
   "preferGlobal": true,
   "version": "0.0.1",
   "author": "@nross <nross63@gmail.com>",
-  "description": "a simple package.js example",
-  "contributors": [ 
-    {
-      "name": "Nate Ross",
-      "email": "nross63@gmail.com"
-    } 
+  "keywords": [
+    "css",
+    "sass",
+    "gulp",
+    "node",
+    "build",
+    "module"
   ],
-  "bin": {
-    "http-server": "./bin/http-server"
-  },
-  "scripts": {
-    "start": "node ./bin/http-server",
-    "test": "vows --spec --isolate",
-    "predeploy": "echo This will be run before deploying the app",
-    "postdeploy": "echo This will be run after deploying the app"
-  },
-  "main": "./lib/http-server",
+  "homepage": "https://github.com/nross63/build",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nross63/gulp.git"
+    "url": "https://github.com/nross63/build.git"
   },
-  "keywords": [
-    "test",
-    "gulp",
-    "node"
-  ],
-   "dependencies" : {
-
+  "bugs": {
+    "url": "https://github.com/nross63/build/issues"
   },
-  "devDependencies": {
+  "license": {
+    "type": "MIT",
+    "url": "https://github.com/nross63/build/LICENSE"
+  },
+  "dependencies": {
     "gulp" : "3.6.x",
     "gulp-sass":"0.7.X",
     "gulp-watch" :"0.6.x",
     "gulp-jshint" :"1.5.x",
     "gulp-concat" :"2.2.x",
     "gulp-rename" :"1.2.x",
-    "gulp-autoprefixer" : ".0.0.x",
+    "gulp-autoprefixer" : "0.0.7",
     "gulp-uglify" :"0.2.x",
     "gulp-coffee" :"1.4.x",
     "gulp-imagemin" : "0.2.x",
     "gulp-minify-html" :"0.1.x",
     "gulp-coffeelint" :"0.3.x",
     "gulp-csslint" :"0.1.x"
-  },
-  "bundledDependencies": [
-  "license": "MIT",
-  "engines": {
-    "node": ">=0.6"
   }
 }
