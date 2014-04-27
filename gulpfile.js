@@ -1,155 +1,95 @@
-var gulp = require('gulp'),
-    sass = require('gulp-sass'),
-    watch = require('gulp-watch'),
-    jshint = require('gulp-jshint'),
-    concat = require('gulp-concat'),
-    rename = require('gulp-rename'),
-    prefix = require('gulp-autoprefixer'),
-    uglify = require('gulp-uglify'),
-    coffee = require('gulp-coffee'),
-    imagemin = require('gulp-imagemin'),
-    html = require('gulp-minify-html'),
-    coffeelint = require('gulp-coffeelint'),
-    csslint = require('gulp-csslint'),
-    paths = {
-        js: 'js/**/*.js',
-        coffee: 'coffee/**/*.coffee',
-        images: 'img/**/*',
-        sass: 'scss/**/*.scss',
-        css: './css/*.css',
-        html: ['html/**/*.html', '*.html']
-    };
+'use strict';
 
-/*--------------------------------------------------------------------------------------------------- HTML
- */
+var gulp = require('gulp');
+var bump = require('gulp-bump');
+var git = require('gulp-git');
+var jshint = require('gulp-jshint');
+var mocha = require('gulp-mocha');
+var clean = require('gulp-clean');
+var rename = require('gulp-rename');
+var header = require('gulp-header');
+var uglify = require('gulp-uglify');
+var size = require('gulp-size');
 
-// minify HTML
-gulp.task('gulpHTML', function() {
-    gulp.src(paths.html)
-        .pipe(minifyHTML())
-        .pipe(gulp.dest('dist/html/'));
-    gulp.src('./index.html')
-        .pipe(minifyHTML())
-        .pipe(gulp.dest('dist/index.html'));
+var extended = [
+  '/**',
+  ' * <%= pkg.name %> - <%= pkg.description %>',
+  ' * @version v<%= pkg.version %>',
+  ' * @link <%= pkg.homepage %>',
+  ' * @license <%= pkg.license %>',
+  ' */',
+  ''
+].join('\n');
+
+var succint = '// <%= pkg.name %>@v<%= pkg.version %>, <%= pkg.license %> licensed. <%= pkg.homepage %>\n';
+
+gulp.task('lint', function () {
+  return gulp.src('./src/*.js')
+    .pipe(jshint('.jshintrc'))
+    .pipe(jshint.reporter('jshint-stylish'));
 });
 
-// Watch HTML
-gulp.task('watchHTML', function() {
-    gulp.watch(['html/**/*.html', 'index.html'], ['gulpHTML']);
+gulp.task('mocha', function () {
+  gulp.src('./test/**/*.js')
+    .pipe(mocha({ reporter: 'list' }));
 });
 
-/*--------------------------------------------------------------------------------------------------- COFFEESCRIPT
- */
-
-// Lint CoffeeScript
-gulp.task('clint', function() {
-    gulp.src('./src/*.coffee')
-        .pipe(coffeelint())
-        .pipe(coffeelint.reporter())
-});
-// Compile CoffeeScript
-gulp.task('gulpCS', function() {
-    return gulp.src(path.coffee)
-        .pipe(coffee())
-        .pipe(uglify())
-        .pipe(gulp.dest('./js/'));
+gulp.task('clean', function () {
+  return gulp.src('./dist', { read: false })
+    .pipe(clean());
 });
 
-// Watch CoffeeScript
-gulp.task('watchCS', function() {
-    gulp.watch('cofee/**/*.coffee', ['clint', 'gulpCS']);
+gulp.task('build-shim', ['bump', 'test', 'clean'], function () {
+  var pkg = require('./package.json');
+
+  return gulp.src('./src/contra.shim.js')
+    .pipe(header(extended, { pkg : pkg } ))
+    .pipe(gulp.dest('./dist'))
+    .pipe(rename('contra.shim.min.js'))
+    .pipe(uglify())
+    .pipe(header(succint, { pkg : pkg } ))
+    .pipe(size())
+    .pipe(gulp.dest('./dist'));
 });
 
-/*--------------------------------------------------------------------------------------------------- JAVASCRIPT
- */
+gulp.task('build', ['build-shim'], function () {
+  var pkg = require('./package.json');
 
-// Lint JS
-gulp.task('lint', function() {
-    return gulp.src(paths.js)
-        .pipe(jshint())
-        .pipe(jshint.reporter('default'));
+  return gulp.src('./src/contra.js')
+    .pipe(header(extended, { pkg : pkg } ))
+    .pipe(gulp.dest('./dist'))
+    .pipe(rename('contra.min.js'))
+    .pipe(uglify())
+    .pipe(header(succint, { pkg : pkg } ))
+    .pipe(size())
+    .pipe(gulp.dest('./dist'));
 });
 
-// Concat & Minify JS
-gulp.task('gulpJS', function() {
-    return gulp.src('src/*.js')
-        .pipe(uglify())
-        .pipe(concat('all.js'))
-        .pipe(gulp.dest('dist/js/'))
-        .pipe(rename('all.min.js'))
-        .pipe(gulp.dest('dist/js/'));
+gulp.task('bump', function () {
+  var bumpType = process.env.BUMP || 'patch'; // major.minor.patch
+
+  return gulp.src(['./package.json', './bower.json'])
+    .pipe(bump({ type: bumpType }))
+    .pipe(gulp.dest('./'));
 });
 
-// Watch JS
-gulp.task('watchJS', function() {
-    gulp.watch('js/**/*.js', ['lint', 'gulpJS']);
+gulp.task('tag', ['build'], function () {
+  var pkg = require('./package.json');
+  var v = 'v' + pkg.version;
+  var message = 'Release ' + v;
+
+  return gulp.src('./')
+    .pipe(git.commit(message))
+    .pipe(git.tag(v, message))
+    .pipe(git.push('origin', 'master', '--tags'))
+    .pipe(gulp.dest('./'));
 });
 
-/*--------------------------------------------------------------------------------------------------- SASS/CSS
- */
-
-// Autoprefix SCSS/CSS targeting last 2 verstions, browsers > 5%, ie 9, ie 8
-gulp.task('prefix', function() {
-    gulp.src(paths.css)
-        .pipe(prefix(["last 1 version", "ie 8"], {
-            cascade: true
-        }))
-        .pipe(gulp.dest('./css/'));
+gulp.task('npm', ['tag'], function (done) {
+  require('child_process').spawn('npm', ['publish'], { stdio: 'inherit' })
+    .on('close', done);
 });
 
-// Compile SASS to CSS JS
-gulp.task('sass', function() {
-    gulp.src('scss/**/*.scss')
-        .pipe(sass())
-        .pipe(gulp.dest('./css'));
-});
-
-// Concat & Minify CSS
-gulp.task('gulpCSS', function() {
-    return gulp.src('./css/*.css')
-        .pipe(concat('all.css'))
-        .pipe(gulp.dest('dist/css/'))
-        .pipe(rename('all.min.css'))
-        .pipe(uglify())
-        .pipe(gulp.dest('dist/css/'));
-});
-
-// Watch CSS
-gulp.task('watchSCSS', function() {
-    gulp.watch('scss/**/*.scss', ['sass', 'gulpCSS']);
-});
-
-/*--------------------------------------------------------------------------------------------------- IMGS
- */
-
-// Minify Images
-gulp.task('images', function() {
-    gulp.src(paths.images)
-        .pipe(imagemin())
-        .pipe(gulp.dest(paths.images));
-});
-
-
-// Watch Images
-gulp.task('watchIMGS', function() {
-    gulp.watch(paths.images, ['images']);
-});
-
-/*--------------------------------------------------------------------------------------------------- Main Tasks
- */
-
-// Default
-gulp.task('default', ['watchHTML', 'watchSCSS', 'watchJS', 'watchIMGS']);
-
-// Default with CoffeeScript
-gulp.task('default', ['watchHTML', 'watchSCSS', 'watchCS', 'watchJS', 'watchIMGS']);
-
-gulp.task('HTML', 'watchHTML');
-
-gulp.task('SCSS', 'watchSCSS');
-
-gulp.task('COFFEE', 'watchCS');
-
-gulp.task('JS', 'watchJS');
-
-gulp.task('IMGS', 'watchIMGS');
+gulp.task('test', ['lint', 'mocha']);
+gulp.task('ci', ['build']);
+gulp.task('release', ['npm']);
