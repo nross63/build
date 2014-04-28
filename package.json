@@ -1,7 +1,7 @@
 {
     "name": "Application",
     "description": "template for builds",
-    "version": "1.5.4",
+    "version": "1.0",
     "homepage": "https://github.com/nross63/build/",
     "author": {
         "name": "Nate Ross",
