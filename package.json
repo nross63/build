@@ -29,8 +29,6 @@
     "testling": {
         "harness": "mocha",
         "files": [
-            "src/contra.js",
-            "src/contra.shim.js",
             "test/*.js"
         ],
         "browsers": {
