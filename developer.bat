@@ -1,0 +1,1 @@
+cinst GoogleChrome  Firefox  iTunes  javaruntime  notepadplusplus.install SublimeText3 git nodejs.install ruby vcredist2010 python mysql.workbench putty Console2 fiddler NuGet.CommandLine vim ScriptCs PhantomJS curl Wget Compass gimp wireshark Cygwin WinPcap winrar java.jdk expresso puppet SourceCodePro Opera mysql nmap php
