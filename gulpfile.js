@@ -1,95 +1,184 @@
-'use strict';
+var gulp = require('gulp'),
+    sass = require('gulp-ruby-sass'),
+    watch = require('gulp-watch'),
+    jshint = require('gulp-jshint'),
+    concat = require('gulp-concat'),
+    rename = require('gulp-rename'),
+    prefix = require('gulp-autoprefixer'),
+    uglify = require('gulp-uglify'),
+    minifyCSS = require('gulp-minify-css'),
+    coffee = require('gulp-coffee'),
+    imagemin = require('gulp-imagemin'),
+    minify = require('gulp-minify-html'),
+    coffeelint = require('gulp-coffeelint'),
+    csslint = require('gulp-csslint'),
+    rimraf = require('rimraf'),
+    sourcemaps = require('gulp-sourcemaps'),
+    paths = {
+        src: {
+            js: './js/**/*.js',
+            coffee: './coffee/**/*.coffee',
+            images: './img/**/*',
+            sass: './sass/*.scss',
+            css: {
+                start: './stylesheets/*.css',
+                end: './build/css/*.css',
+            },
+            html: './*.html'
+        },
+        dst: {
+            css: {
+                start: './stylesheets/',
+                end: './build/css/',
+            },
+            js: './build/js/',
+            images: './build/img/',
+            root: './build/'
+        }
 
-var gulp = require('gulp');
-var bump = require('gulp-bump');
-var git = require('gulp-git');
-var jshint = require('gulp-jshint');
-var mocha = require('gulp-mocha');
-var clean = require('gulp-clean');
-var rename = require('gulp-rename');
-var header = require('gulp-header');
-var uglify = require('gulp-uglify');
-var size = require('gulp-size');
+    };
+gulp.task('clean', function(cb) {
+    rimraf(paths.dst.root, cb);
+});
+/*--------------------------------------------------------------------------------- HTML
+ */
 
-var extended = [
-  '/**',
-  ' * <%= pkg.name %> - <%= pkg.description %>',
-  ' * @version v<%= pkg.version %>',
-  ' * @link <%= pkg.homepage %>',
-  ' * @license <%= pkg.license %>',
-  ' */',
-  ''
-].join('\n');
-
-var succint = '// <%= pkg.name %>@v<%= pkg.version %>, <%= pkg.license %> licensed. <%= pkg.homepage %>\n';
-
-gulp.task('lint', function () {
-  return gulp.src('./src/*.js')
-    .pipe(jshint('.jshintrc'))
-    .pipe(jshint.reporter('jshint-stylish'));
+// minify HTML
+gulp.task('gulpHTML', function() {
+    return gulp.src(paths.src.html)
+        .pipe(minify())
+        .pipe(gulp.dest(paths.dst.root));
 });
 
-gulp.task('mocha', function () {
-  gulp.src('./test/**/*.js')
-    .pipe(mocha({ reporter: 'list' }));
+// Watch HTML
+gulp.task('watchHTML', function() {
+    return watch(paths.src.html, ['gulpHTML']);
 });
 
-gulp.task('clean', function () {
-  return gulp.src('./dist', { read: false })
-    .pipe(clean());
+/*------------------------------------------------------------------------ COFFEESCRIPT
+ */
+
+// Lint CoffeeScript
+gulp.task('lint-coffee', function() {
+    return gulp.src(paths.src.coffee)
+        .pipe(coffeelint())
+        .pipe(coffeelint.reporter());
+});
+// Compile CoffeeScript
+gulp.task('gulpCS', function() {
+    return gulp.src(paths.src.coffee)
+        .pipe(coffee())
+        .pipe(concat('all.js'))
+        .pipe(gulp.dest(paths.dst.js))
+        .pipe(uglify())
+        .pipe(rename('all.min.js'))
+        .pipe(gulp.dest(paths.dst.js));
 });
 
-gulp.task('build-shim', ['bump', 'test', 'clean'], function () {
-  var pkg = require('./package.json');
-
-  return gulp.src('./src/contra.shim.js')
-    .pipe(header(extended, { pkg : pkg } ))
-    .pipe(gulp.dest('./dist'))
-    .pipe(rename('contra.shim.min.js'))
-    .pipe(uglify())
-    .pipe(header(succint, { pkg : pkg } ))
-    .pipe(size())
-    .pipe(gulp.dest('./dist'));
+// Watch CoffeeScript
+gulp.task('watchCS', function() {
+    return watch(paths.src.coffee, ['lint-coffee', 'gulpCS']);
 });
 
-gulp.task('build', ['build-shim'], function () {
-  var pkg = require('./package.json');
+/*-------------------------------------------------------------------------- JAVASCRIPT
+ */
 
-  return gulp.src('./src/contra.js')
-    .pipe(header(extended, { pkg : pkg } ))
-    .pipe(gulp.dest('./dist'))
-    .pipe(rename('contra.min.js'))
-    .pipe(uglify())
-    .pipe(header(succint, { pkg : pkg } ))
-    .pipe(size())
-    .pipe(gulp.dest('./dist'));
+// Lint JS
+gulp.task('jshint', function() {
+    return gulp.src(paths.src.js)
+        .pipe(jshint())
+        .pipe(jshint.reporter('default'));
 });
 
-gulp.task('bump', function () {
-  var bumpType = process.env.BUMP || 'patch'; // major.minor.patch
-
-  return gulp.src(['./package.json', './bower.json'])
-    .pipe(bump({ type: bumpType }))
-    .pipe(gulp.dest('./'));
+// Concat & Minify JS
+gulp.task('gulpJS', function() {
+    return gulp.src(paths.src.js)
+        .pipe(sourcemaps.init())
+        .pipe(uglify())
+        .pipe(rename('all.min.js'))
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(paths.dst.js));
 });
 
-gulp.task('tag', ['build'], function () {
-  var pkg = require('./package.json');
-  var v = 'v' + pkg.version;
-  var message = 'Release ' + v;
-
-  return gulp.src('./')
-    .pipe(git.commit(message))
-    .pipe(git.tag(v, message))
-    .pipe(git.push('origin', 'master', '--tags'))
-    .pipe(gulp.dest('./'));
+// Watch JS
+gulp.task('watchJS', function() {
+    return watch(paths.src.js, ['gulpJS']);
 });
 
-gulp.task('npm', ['tag'], function (done) {
-  require('child_process').spawn('npm', ['publish'], { stdio: 'inherit' })
-    .on('close', done);
+/*--------------------------------------------------------------------------- SASS/CSS
+ */
+
+gulp.task('sass', function() { //Currently using compass to watch & compile SASS
+    return gulp.src(paths.src.sass)
+        .pipe(sass({
+            sourcemap: true
+        }))
+        .pipe(gulp.dest(paths.dst.css));
 });
 
-gulp.task('test', ['lint', 'mocha']);
-gulp.task('ci', ['build']);
-gulp.task('release', ['npm']);
+// Autoprefix CSS targeting last 1 version
+gulp.task('prefix', function() {
+    return gulp.src(paths.src.css.start)
+        .pipe(prefix(['last 1 version'], {
+            cascade: true
+        }))
+        .pipe(gulp.dest(paths.dst.css.start));
+});
+
+gulp.task('csslint', ['prefix'], function() {
+    return gulp.src(paths.src.css.start)
+        .pipe(csslint())
+        .pipe(csslint.reporter());
+});
+
+// Concat & Minify CSS
+gulp.task('gulpCSS', ['prefix'], function() {
+    return gulp.src(paths.src.css.start)
+        .pipe(minifyCSS())
+        .pipe(concat('all.min.css'))
+        .pipe(gulp.dest(paths.dst.css.end))
+        .pipe(rename('all.min.css'))
+        .pipe(gulp.dest(paths.dst.css.end));
+});
+
+// Watch CSS
+gulp.task('watchCSS', function() {
+    return watch(paths.src.css.start, ['prefix', 'csslint', 'gulpCSS']);
+});
+
+/*-------------------------------------------------------------------------------- IMGS
+ */
+
+// Minify Images
+gulp.task('images', function() {
+    return gulp.src(paths.src.images)
+        .pipe(imagemin())
+        .pipe(gulp.dest(paths.dst.images));
+});
+
+
+// Watch Images
+gulp.task('watchIMGS', function() {
+    watch(paths.src.images, ['images']);
+});
+
+/*-------------------------------------------------------------------------- TASK GROUPS
+ */
+
+
+// Default watch JS, CSS, HTML, and IMG files. Run tasks on changes.
+gulp.task('default', ['watchJS', 'watchCSS', 'watchHTML', 'watchIMGS']);
+
+gulp.task('ALL', ['html', 'css', 'coffeeScript', 'images']);
+
+gulp.task('HTML', ['watchHTML']);
+
+gulp.task('SCSS', ['watchSCSS']);
+
+gulp.task('COFFEE', ['watchCS']);
+
+gulp.task('JS', ['watchJS']);
+
+gulp.task('IMGS', ['watchIMGS']);
+
+gulp.task('CLEAN', ['clean']);
